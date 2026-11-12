@@ -1,0 +1,6 @@
+{
+  "name": "S&S Block Puzzle",
+  "description": "Next generation block puzzle game by Sayod & Subhon. Features 10 game modes including Classic, Hexa, Time Attack, Zen, Bomb, Adventure, and full multilingual support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
