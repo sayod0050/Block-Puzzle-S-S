@@ -13,10 +13,11 @@ import com.example.model.AdventureStages
 import com.example.model.AppLanguage
 import com.example.model.BlockShape
 import com.example.model.BlockShapeFactory
-import com.example.model.GameModeInfo
 import com.example.model.GameModeType
 import com.example.model.GameModes
 import com.example.model.GameThemes
+import com.example.model.GridCell
+import com.example.model.HexCell
 import com.example.model.HexGameBoard
 import com.example.model.LocalizationManager
 import com.example.model.LocalizedStrings
@@ -88,6 +89,34 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _coins = MutableStateFlow(prefs.coins)
     val coins: StateFlow<Int> = _coins.asStateFlow()
 
+    private val _playerName = MutableStateFlow(prefs.playerName)
+    val playerName: StateFlow<String> = _playerName.asStateFlow()
+
+    // Reactive settings StateFlows
+    private val _masterVolume = MutableStateFlow(prefs.masterVolume)
+    val masterVolume: StateFlow<Float> = _masterVolume.asStateFlow()
+
+    private val _musicVolume = MutableStateFlow(prefs.musicVolume)
+    val musicVolume: StateFlow<Float> = _musicVolume.asStateFlow()
+
+    private val _sfxVolume = MutableStateFlow(prefs.sfxVolume)
+    val sfxVolume: StateFlow<Float> = _sfxVolume.asStateFlow()
+
+    private val _isMusicEnabled = MutableStateFlow(prefs.isMusicEnabled)
+    val isMusicEnabled: StateFlow<Boolean> = _isMusicEnabled.asStateFlow()
+
+    private val _isSfxEnabled = MutableStateFlow(prefs.isSfxEnabled)
+    val isSfxEnabled: StateFlow<Boolean> = _isSfxEnabled.asStateFlow()
+
+    private val _isVibrationEnabled = MutableStateFlow(prefs.isVibrationEnabled)
+    val isVibrationEnabled: StateFlow<Boolean> = _isVibrationEnabled.asStateFlow()
+
+    private val _isPlacementPreviewEnabled = MutableStateFlow(prefs.isPlacementPreviewEnabled)
+    val isPlacementPreviewEnabled: StateFlow<Boolean> = _isPlacementPreviewEnabled.asStateFlow()
+
+    private val _isReducedMotionEnabled = MutableStateFlow(prefs.isReducedMotionEnabled)
+    val isReducedMotionEnabled: StateFlow<Boolean> = _isReducedMotionEnabled.asStateFlow()
+
     // Active Game State
     private val _activeMode = MutableStateFlow(GameModeType.CLASSIC)
     val activeMode: StateFlow<GameModeType> = _activeMode.asStateFlow()
@@ -125,15 +154,33 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _newHighScoreAchieved = MutableStateFlow(false)
     val newHighScoreAchieved: StateFlow<Boolean> = _newHighScoreAchieved.asStateFlow()
 
-    // Boards
+    // Boards & Reactive Snapshots
     val standardBoard = StandardGameBoard(10)
     val hexBoard = HexGameBoard(3)
+
+    private val _boardGrid = MutableStateFlow(standardBoard.snapshotGrid())
+    val boardGrid: StateFlow<List<List<GridCell>>> = _boardGrid.asStateFlow()
+
+    private val _hexGrid = MutableStateFlow(hexBoard.snapshotCells())
+    val hexGrid: StateFlow<Map<Pair<Int, Int>, HexCell>> = _hexGrid.asStateFlow()
+
+    private val _lastPlacedCells = MutableStateFlow<Set<Pair<Int, Int>>>(emptySet())
+    val lastPlacedCells: StateFlow<Set<Pair<Int, Int>>> = _lastPlacedCells.asStateFlow()
+
+    private val _lastClearedCells = MutableStateFlow<List<Pair<Int, Int>>>(emptyList())
+    val lastClearedCells: StateFlow<List<Pair<Int, Int>>> = _lastClearedCells.asStateFlow()
+
+    private val _clearBurstId = MutableStateFlow(0L)
+    val clearBurstId: StateFlow<Long> = _clearBurstId.asStateFlow()
+
+    private val _placeAnimId = MutableStateFlow(0L)
+    val placeAnimId: StateFlow<Long> = _placeAnimId.asStateFlow()
 
     // Tray Pieces (size 3)
     private val _trayPieces = MutableStateFlow<List<BlockShape?>>(listOf(null, null, null))
     val trayPieces: StateFlow<List<BlockShape?>> = _trayPieces.asStateFlow()
 
-    // Selection / Dragging state
+    // Selection state for tap-to-place
     private val _selectedPieceIndex = MutableStateFlow<Int?>(null)
     val selectedPieceIndex: StateFlow<Int?> = _selectedPieceIndex.asStateFlow()
 
@@ -149,15 +196,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val bombExploded: StateFlow<Boolean> = _bombExploded.asStateFlow()
 
     // Zen Mode Undo snapshot
-    private var zenSnapshot: Array<Array<com.example.model.GridCell>>? = null
+    private var zenSnapshot: Array<Array<GridCell>>? = null
     private var zenScoreSnapshot = 0
 
     // Coroutine Jobs
     private var timerJob: Job? = null
     private var playTimeTrackerJob: Job? = null
 
+    companion object {
+        const val PUZZLE_TARGET_SCORE = 800
+        const val DAILY_TARGET_SCORE = 1200
+    }
+
     init {
-        // Sync Audio Settings
         soundManager.masterVolume = prefs.masterVolume
         soundManager.musicVolume = prefs.musicVolume
         soundManager.sfxVolume = prefs.sfxVolume
@@ -165,15 +216,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         soundManager.isSfxEnabled = prefs.isSfxEnabled
         hapticManager.isVibrationEnabled = prefs.isVibrationEnabled
 
-        // Start play time tracking
         playTimeTrackerJob = viewModelScope.launch {
             while (isActive) {
                 delay(1000)
-                if (_currentScreen.value == GameScreen.GAME_PLAY && !_isPaused.value && !_isGameOver.value) {
+                if (_currentScreen.value == GameScreen.GAME_PLAY && !_isPaused.value && !_isGameOver.value && !_isVictory.value) {
                     prefs.totalPlayTimeSeconds += 1
                 }
             }
         }
+    }
+
+    private fun syncBoardSnapshots() {
+        _boardGrid.value = standardBoard.snapshotGrid()
+        _hexGrid.value = hexBoard.snapshotCells()
     }
 
     fun navigateTo(screen: GameScreen) {
@@ -190,6 +245,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         prefs.language = lang
         _language.value = lang
         _strings.value = LocalizationManager.get(lang)
+    }
+
+    fun setPlayerName(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isNotEmpty()) {
+            prefs.playerName = trimmed
+            _playerName.value = trimmed
+        }
     }
 
     fun selectTheme(themeId: ThemeId) {
@@ -226,8 +289,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _bombExploded.value = false
         _selectedPieceIndex.value = null
         _floatingCombos.value = emptyList()
+        _lastPlacedCells.value = emptySet()
+        _lastClearedCells.value = emptyList()
+        zenSnapshot = null
+        particleManager.clear()
 
-        // Init board
         if (modeInfo.isHexa) {
             hexBoard.reset()
         } else {
@@ -237,7 +303,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 standardBoard.loadObstacles(stage.preFilledCells)
                 _movesLeft.value = if (stage.maxMoves > 0) stage.maxMoves else 999
             } else if (mode == GameModeType.DAILY_CHALLENGE) {
-                // Seed daily challenge
                 val sdf = SimpleDateFormat("yyyyMMdd", Locale.US)
                 val seed = sdf.format(Date()).toLongOrNull() ?: 20261112L
                 val random = kotlin.random.Random(seed)
@@ -250,22 +315,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             } else if (mode == GameModeType.PUZZLE_CHALLENGE) {
                 _movesLeft.value = modeInfo.maxMoves
             } else if (mode == GameModeType.BOMB_CHALLENGE) {
-                // Pre-spawn an initial bomb
                 standardBoard.addBomb(count = 9)
             }
         }
 
-        // Replenish pieces
+        syncBoardSnapshots()
         refillTray(modeInfo.isHexa)
 
-        // Init Timer if Time Attack
         timerJob?.cancel()
         if (mode == GameModeType.TIME_ATTACK) {
             _timeLeftSeconds.value = modeInfo.initialTimeSeconds
             timerJob = viewModelScope.launch {
                 while (isActive && _timeLeftSeconds.value > 0) {
                     delay(1000)
-                    if (!_isPaused.value && !_isGameOver.value) {
+                    if (!_isPaused.value && !_isGameOver.value && !_isVictory.value) {
                         _timeLeftSeconds.value -= 1
                         if (_timeLeftSeconds.value <= 0) {
                             handleGameOver()
@@ -287,6 +350,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectPieceForPlacement(index: Int) {
+        if (_isPaused.value || _isGameOver.value || _isVictory.value) return
         if (_trayPieces.value.getOrNull(index) != null) {
             soundManager.playBlockPickup()
             hapticManager.vibrateClick()
@@ -294,43 +358,52 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun tryPlaceSelectedPiece(row: Int, col: Int) {
-        val idx = _selectedPieceIndex.value ?: return
-        val piece = _trayPieces.value.getOrNull(idx) ?: return
+    fun clearSelection() {
+        _selectedPieceIndex.value = null
+    }
 
-        if (_activeMode.value == GameModeType.HEXA) {
+    fun tryPlaceSelectedPiece(row: Int, col: Int): Boolean {
+        if (_isPaused.value || _isGameOver.value || _isVictory.value) return false
+        val idx = _selectedPieceIndex.value ?: return false
+        val piece = _trayPieces.value.getOrNull(idx) ?: return false
+
+        return if (_activeMode.value == GameModeType.HEXA) {
             tryPlaceHexPiece(idx, piece, row, col)
         } else {
-            tryPlaceStandardPiece(idx, piece, row, col)
+            val snapped = standardBoard.findTapPlacement(piece, row, col) ?: return false
+            tryPlaceStandardPiece(idx, piece, snapped.first, snapped.second)
         }
     }
 
     fun tryPlaceStandardPiece(pieceIndex: Int, piece: BlockShape, row: Int, col: Int): Boolean {
+        if (_isPaused.value || _isGameOver.value || _isVictory.value) return false
+        if (_trayPieces.value.getOrNull(pieceIndex)?.id != piece.id) return false
         if (!standardBoard.canPlacePiece(piece, row, col)) {
             return false
         }
 
-        // Zen Mode snapshot before move
         if (_activeMode.value == GameModeType.ZEN) {
             zenSnapshot = standardBoard.createSnapshot()
             zenScoreSnapshot = _score.value
         }
 
-        // Place on board
-        standardBoard.placePiece(piece, row, col)
+        val placedCoords = standardBoard.placePiece(piece, row, col)
+        _lastPlacedCells.value = placedCoords.toSet()
+        _placeAnimId.value = System.nanoTime()
+
         soundManager.playBlockPlace()
         hapticManager.vibratePlace()
 
-        // Deduct move if puzzle or daily
-        if (_activeMode.value == GameModeType.PUZZLE_CHALLENGE || _activeMode.value == GameModeType.DAILY_CHALLENGE) {
+        if (_activeMode.value == GameModeType.PUZZLE_CHALLENGE ||
+            _activeMode.value == GameModeType.DAILY_CHALLENGE ||
+            (_activeMode.value == GameModeType.ADVENTURE && AdventureStages.getStage(_adventureLevel.value).maxMoves > 0)
+        ) {
             _movesLeft.value = (_movesLeft.value - 1).coerceAtLeast(0)
         }
 
-        // Base points
         val basePoints = piece.coordinates.size * 10
         var addedScore = basePoints
 
-        // Check line clears
         val clearResult = standardBoard.checkAndClearLines()
         if (clearResult.clearedCount > 0) {
             val comboBonus = _combo.value
@@ -346,27 +419,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             _linesClearedInGame.value += clearResult.clearedCount
             prefs.totalLinesCleared += clearResult.clearedCount
 
-            // Particle burst at center of cleared cells
-            clearResult.clearedCells.forEach { (cr, cc) ->
-                // Approximate coordinate offset for particle spawn
-                particleManager.spawnLineClearBurst(
-                    center = Offset(cc * 70f + 100f, cr * 70f + 250f),
-                    colors = _theme.value.blockColors,
-                    count = 8
-                )
-            }
+            _lastClearedCells.value = clearResult.clearedCells
+            _clearBurstId.value = System.nanoTime()
 
-            // Sound and haptics
             soundManager.playLineClear(clearResult.clearedCount)
             hapticManager.vibrateClear(clearResult.clearedCount)
 
-            // Multiplier surge
             _combo.value = (_combo.value + 1).coerceAtMost(8)
             if (_combo.value > prefs.highestCombo) {
                 prefs.highestCombo = _combo.value
             }
 
-            // Show floating combo text
             val comboMsg = if (clearResult.clearedCount >= 3) {
                 "PERFECT! x${_combo.value}"
             } else if (_combo.value > 1) {
@@ -376,12 +439,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             }
             triggerFloatingCombo(comboMsg)
 
-            // Bonus time for Time Attack
             if (_activeMode.value == GameModeType.TIME_ATTACK) {
                 _timeLeftSeconds.value = (_timeLeftSeconds.value + (clearResult.clearedCount * 5)).coerceAtMost(180)
             }
 
-            // Check achievements
             if (clearResult.clearedCount >= 3) {
                 checkAchievement(AchievementId.PERFECT_PLANNING, 3)
             }
@@ -393,34 +454,33 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 checkAchievement(AchievementId.PUZZLE_EXPERT, prefs.totalLinesCleared)
             }
         } else {
-            // No lines cleared this turn
+            _lastClearedCells.value = emptyList()
             if (_activeMode.value == GameModeType.COMBO_RUSH || _activeMode.value == GameModeType.TIME_ATTACK) {
                 _combo.value = 1
             }
         }
 
-        // Bomb Challenge mechanics
         if (_activeMode.value == GameModeType.BOMB_CHALLENGE) {
+            if (clearResult.defusedBombs > 0) {
+                prefs.totalBombsDefused += clearResult.defusedBombs
+                soundManager.playBombDefused()
+                checkAchievement(AchievementId.BOMB_SQUAD, prefs.totalBombsDefused)
+            }
             val exploded = standardBoard.tickBombs()
             if (exploded) {
                 _bombExploded.value = true
                 soundManager.playBombTick()
+                syncBoardSnapshots()
                 handleGameOver()
                 return true
             }
-            // Spawn a new bomb every 4 placements if none exist
             if (kotlin.random.Random.nextInt(4) == 0) {
                 standardBoard.addBomb(count = 9)
                 soundManager.playBombTick()
                 hapticManager.vibrateBombTick()
             }
-            if (clearResult.defusedBombs > 0) {
-                soundManager.playBombDefused()
-                checkAchievement(AchievementId.BOMB_SQUAD, clearResult.defusedBombs)
-            }
         }
 
-        // Update score
         val newScore = _score.value + addedScore
         _score.value = newScore
 
@@ -433,20 +493,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             prefs.setHighScore(_activeMode.value, newScore)
         }
 
-        // Check score milestones for achievements
         if (newScore >= 1000) checkAchievement(AchievementId.GETTING_BETTER, newScore)
         if (newScore >= 5000) checkAchievement(AchievementId.SS_CHAMPION, newScore)
         if (_activeMode.value == GameModeType.TIME_ATTACK && newScore >= 1500) {
             checkAchievement(AchievementId.TIME_FIGHTER, newScore)
         }
 
-        // Consume placed piece
         val currentTray = _trayPieces.value.toMutableList()
         currentTray[pieceIndex] = null
         _trayPieces.value = currentTray
         _selectedPieceIndex.value = null
 
-        // Check victory conditions (Adventure / Daily)
+        syncBoardSnapshots()
+
         if (_activeMode.value == GameModeType.ADVENTURE) {
             val stage = AdventureStages.getStage(_adventureLevel.value)
             if (newScore >= stage.targetScore && _linesClearedInGame.value >= stage.targetLines) {
@@ -458,7 +517,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 return true
             }
         } else if (_activeMode.value == GameModeType.DAILY_CHALLENGE) {
-            if (newScore >= 1200) {
+            if (newScore >= DAILY_TARGET_SCORE) {
                 handleDailyVictory()
                 return true
             }
@@ -467,27 +526,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 return true
             }
         } else if (_activeMode.value == GameModeType.PUZZLE_CHALLENGE) {
+            if (newScore >= PUZZLE_TARGET_SCORE) {
+                _isVictory.value = true
+                soundManager.playVictory()
+                prefs.addCoins(120)
+                _coins.value = prefs.coins
+                return true
+            }
             if (_movesLeft.value <= 0) {
                 handleGameOver()
                 return true
             }
         }
 
-        // Refill tray if all 3 used
         if (currentTray.all { it == null }) {
             refillTray(false)
         }
 
-        // Check if game over (no valid moves remain)
         checkMovesRemaining(false)
-
         return true
     }
 
     fun tryPlaceHexPiece(pieceIndex: Int, piece: BlockShape, q: Int, r: Int): Boolean {
+        if (_isPaused.value || _isGameOver.value || _isVictory.value) return false
+        if (_trayPieces.value.getOrNull(pieceIndex)?.id != piece.id) return false
         if (!hexBoard.canPlacePiece(piece, q, r)) return false
 
-        hexBoard.placePiece(piece, q, r)
+        val placedCoords = hexBoard.placePiece(piece, q, r)
+        _lastPlacedCells.value = placedCoords.toSet()
+        _placeAnimId.value = System.nanoTime()
+
         soundManager.playBlockPlace()
         hapticManager.vibratePlace()
 
@@ -497,17 +565,27 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (clearResult.clearedCount > 0) {
             val linePoints = clearResult.clearedCount * 250 * _combo.value
             addedScore += linePoints
+            _linesClearedInGame.value += clearResult.clearedCount
+            prefs.totalLinesCleared += clearResult.clearedCount
+            _lastClearedCells.value = clearResult.clearedCells
+            _clearBurstId.value = System.nanoTime()
+
             soundManager.playLineClear(clearResult.clearedCount)
             hapticManager.vibrateClear(clearResult.clearedCount)
             _combo.value = (_combo.value + 1).coerceAtMost(6)
             triggerFloatingCombo("HEXA CLEAR! x${_combo.value}")
         } else {
+            _lastClearedCells.value = emptyList()
             _combo.value = 1
         }
 
         val newScore = _score.value + addedScore
         _score.value = newScore
         if (newScore > _bestScore.value) {
+            if (!_newHighScoreAchieved.value && _bestScore.value > 0) {
+                _newHighScoreAchieved.value = true
+                soundManager.playVictory()
+            }
             _bestScore.value = newScore
             prefs.setHighScore(GameModeType.HEXA, newScore)
         }
@@ -519,6 +597,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         currentTray[pieceIndex] = null
         _trayPieces.value = currentTray
         _selectedPieceIndex.value = null
+
+        syncBoardSnapshots()
 
         if (currentTray.all { it == null }) {
             refillTray(true)
@@ -546,7 +626,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (_isGameOver.value) return
         _isGameOver.value = true
         soundManager.playGameOver()
-        // Award participation coins
         val earnedCoins = (_score.value / 60).coerceAtLeast(5)
         prefs.addCoins(earnedCoins)
         _coins.value = prefs.coins
@@ -587,6 +666,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         standardBoard.restoreSnapshot(snap)
         _score.value = zenScoreSnapshot
         zenSnapshot = null
+        syncBoardSnapshots()
         soundManager.playButtonClick()
     }
 
@@ -628,6 +708,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         prefs.masterVolume = master
         prefs.musicVolume = music
         prefs.sfxVolume = sfx
+        _masterVolume.value = master
+        _musicVolume.value = music
+        _sfxVolume.value = sfx
         soundManager.masterVolume = master
         soundManager.musicVolume = music
         soundManager.sfxVolume = sfx
@@ -635,6 +718,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleMusic(enabled: Boolean) {
         prefs.isMusicEnabled = enabled
+        _isMusicEnabled.value = enabled
         soundManager.isMusicEnabled = enabled
         if (enabled && _currentScreen.value == GameScreen.GAME_PLAY) {
             soundManager.startBackgroundMusic(isZenMode = _activeMode.value == GameModeType.ZEN)
@@ -645,29 +729,48 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleSfx(enabled: Boolean) {
         prefs.isSfxEnabled = enabled
+        _isSfxEnabled.value = enabled
         soundManager.isSfxEnabled = enabled
     }
 
     fun toggleVibration(enabled: Boolean) {
         prefs.isVibrationEnabled = enabled
+        _isVibrationEnabled.value = enabled
         hapticManager.isVibrationEnabled = enabled
     }
 
     fun togglePreview(enabled: Boolean) {
         prefs.isPlacementPreviewEnabled = enabled
+        _isPlacementPreviewEnabled.value = enabled
     }
 
     fun toggleReducedMotion(enabled: Boolean) {
         prefs.isReducedMotionEnabled = enabled
+        _isReducedMotionEnabled.value = enabled
     }
 
     fun resetAllProgress() {
         prefs.resetAllProgress()
         _coins.value = prefs.coins
+        _playerName.value = prefs.playerName
         _unlockedThemes.value = prefs.getUnlockedThemes()
         _theme.value = GameThemes.getTheme(prefs.selectedThemeId)
         _language.value = prefs.language
         _strings.value = LocalizationManager.get(prefs.language)
+        _masterVolume.value = prefs.masterVolume
+        _musicVolume.value = prefs.musicVolume
+        _sfxVolume.value = prefs.sfxVolume
+        _isMusicEnabled.value = prefs.isMusicEnabled
+        _isSfxEnabled.value = prefs.isSfxEnabled
+        _isVibrationEnabled.value = prefs.isVibrationEnabled
+        _isPlacementPreviewEnabled.value = prefs.isPlacementPreviewEnabled
+        _isReducedMotionEnabled.value = prefs.isReducedMotionEnabled
+        soundManager.masterVolume = prefs.masterVolume
+        soundManager.musicVolume = prefs.musicVolume
+        soundManager.sfxVolume = prefs.sfxVolume
+        soundManager.isMusicEnabled = prefs.isMusicEnabled
+        soundManager.isSfxEnabled = prefs.isSfxEnabled
+        hapticManager.isVibrationEnabled = prefs.isVibrationEnabled
         _score.value = 0
         _bestScore.value = 0
     }

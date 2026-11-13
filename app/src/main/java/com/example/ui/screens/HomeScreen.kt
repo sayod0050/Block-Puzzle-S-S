@@ -61,6 +61,7 @@ fun HomeScreen(viewModel: GameViewModel) {
     val strings by viewModel.strings.collectAsState()
     val theme by viewModel.theme.collectAsState()
     val coins by viewModel.coins.collectAsState()
+    val playerName by viewModel.playerName.collectAsState()
     val dailyStreak = viewModel.prefs.dailyStreak
     val totalStars = viewModel.prefs.getTotalAdventureStars()
 
@@ -96,7 +97,7 @@ fun HomeScreen(viewModel: GameViewModel) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "S",
+                        text = playerName.take(1).uppercase(),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -105,7 +106,7 @@ fun HomeScreen(viewModel: GameViewModel) {
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = viewModel.prefs.playerName,
+                        text = playerName,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = theme.textColorPrimary

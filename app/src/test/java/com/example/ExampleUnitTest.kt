@@ -7,9 +7,12 @@ import com.example.model.HexGameBoard
 import com.example.model.LocalizationManager
 import com.example.model.StandardGameBoard
 import com.example.model.ThemeId
+import com.example.ui.components.hexAxialToPixel
+import com.example.ui.components.pixelToHexAxial
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -19,36 +22,68 @@ class ExampleUnitTest {
     fun testStandardGameBoardRowClear() {
         val board = StandardGameBoard(10)
 
-        // Fill row 0 completely except for 1 cell
         for (c in 0 until 9) {
             val single = BlockShape("test_$c", listOf(Pair(0, 0)), colorIndex = 0)
             assertTrue(board.canPlacePiece(single, 0, c))
             board.placePiece(single, 0, c)
         }
 
-        // Row should not be full yet
         val resultBefore = board.checkAndClearLines()
         assertEquals(0, resultBefore.clearedCount)
 
-        // Place last block at (0, 9)
         val lastPiece = BlockShape("last", listOf(Pair(0, 0)), colorIndex = 1)
         board.placePiece(lastPiece, 0, 9)
 
-        // Now row 0 must clear
         val resultAfter = board.checkAndClearLines()
         assertEquals(1, resultAfter.clearedCount)
         assertEquals(10, resultAfter.clearedCells.size)
-        // Verify row 0 cells are now empty
         for (c in 0 until 10) {
             assertFalse(board.getCell(0, c)?.isFilled ?: true)
         }
     }
 
     @Test
-    fun testHexGameBoardAxialLineClear() {
-        val hexBoard = HexGameBoard(radius = 3)
+    fun testPredictiveWillClearCells() {
+        val board = StandardGameBoard(10)
+        for (c in 0 until 8) {
+            board.placePiece(BlockShape("p_$c", listOf(Pair(0, 0)), 0), 2, c)
+        }
+        val bar2 = BlockShape("bar2", listOf(Pair(0, 0), Pair(0, 1)), 1)
+        val willClear = board.getWillClearCells(bar2, 2, 8)
+        assertEquals(10, willClear.size)
+        for (c in 0 until 10) {
+            assertTrue(willClear.contains(Pair(2, c)))
+        }
+    }
 
-        // In radius 3, q = 0 has r from -3 to 3 (7 cells)
+    @Test
+    fun testSmartTapPlacementSnapsInsideBounds() {
+        val board = StandardGameBoard(10)
+        val bar3 = BlockShape("bar3", listOf(Pair(0, 0), Pair(0, 1), Pair(0, 2)), 0)
+        val pos = board.findTapPlacement(bar3, 0, 9)
+        assertNotNull(pos)
+        assertTrue(board.canPlacePiece(bar3, pos!!.first, pos.second))
+
+        // Reject when completely blocked
+        for (r in 0 until 10) {
+            for (c in 0 until 10) {
+                board.placePiece(BlockShape("fill", listOf(Pair(0, 0)), 0), r, c)
+            }
+        }
+        assertNull(board.findTapPlacement(bar3, 5, 5))
+    }
+
+    @Test
+    fun testHexGameBoardAxialLineClearAndPixelRoundtrip() {
+        val hexBoard = HexGameBoard(radius = 3)
+        val hexRadius = 40f
+
+        for (coord in hexBoard.validCoords) {
+            val px = hexAxialToPixel(coord.first, coord.second, hexRadius)
+            val roundtrip = pixelToHexAxial(px.x, px.y, hexRadius)
+            assertEquals(coord, roundtrip)
+        }
+
         val q0Cells = hexBoard.validCoords.filter { it.first == 0 }
         assertEquals(7, q0Cells.size)
 
@@ -67,7 +102,6 @@ class ExampleUnitTest {
         val board = StandardGameBoard(10)
         board.addBomb(count = 2)
 
-        // Find bomb
         var bombFound = false
         for (r in 0 until 10) {
             for (c in 0 until 10) {
@@ -79,13 +113,8 @@ class ExampleUnitTest {
         }
         assertTrue(bombFound)
 
-        // Tick 1
-        var exploded = board.tickBombs()
-        assertFalse(exploded)
-
-        // Tick 2: reaches 0 -> explodes
-        exploded = board.tickBombs()
-        assertTrue(exploded)
+        assertFalse(board.tickBombs())
+        assertTrue(board.tickBombs())
     }
 
     @Test

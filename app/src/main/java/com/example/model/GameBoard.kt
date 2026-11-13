@@ -176,4 +176,63 @@ class StandardGameBoard(val size: Int = 10) {
             }
         }
     }
+
+    fun snapshotGrid(): List<List<GridCell>> {
+        return List(size) { r -> List(size) { c -> grid[r][c] } }
+    }
+
+    fun getWillClearCells(piece: BlockShape, startRow: Int, startCol: Int): Set<Pair<Int, Int>> {
+        if (!canPlacePiece(piece, startRow, startCol)) return emptySet()
+        val projected = piece.normalizedCoordinates.map { Pair(startRow + it.first, startCol + it.second) }.toSet()
+        val willClear = mutableSetOf<Pair<Int, Int>>()
+
+        for (r in 0 until size) {
+            var full = true
+            for (c in 0 until size) {
+                if (!grid[r][c].isFilled && !projected.contains(Pair(r, c))) {
+                    full = false
+                    break
+                }
+            }
+            if (full) {
+                for (c in 0 until size) willClear.add(Pair(r, c))
+            }
+        }
+
+        for (c in 0 until size) {
+            var full = true
+            for (r in 0 until size) {
+                if (!grid[r][c].isFilled && !projected.contains(Pair(r, c))) {
+                    full = false
+                    break
+                }
+            }
+            if (full) {
+                for (r in 0 until size) willClear.add(Pair(r, c))
+            }
+        }
+
+        return willClear
+    }
+
+    fun findTapPlacement(piece: BlockShape, tapRow: Int, tapCol: Int): Pair<Int, Int>? {
+        val centeredRow = tapRow - (piece.rowSpan - 1) / 2
+        val centeredCol = tapCol - (piece.colSpan - 1) / 2
+        if (canPlacePiece(piece, centeredRow, centeredCol)) {
+            return Pair(centeredRow, centeredCol)
+        }
+        if (canPlacePiece(piece, tapRow, tapCol)) {
+            return Pair(tapRow, tapCol)
+        }
+        for (dr in -1..1) {
+            for (dc in -1..1) {
+                val r = centeredRow + dr
+                val c = centeredCol + dc
+                if (canPlacePiece(piece, r, c)) {
+                    return Pair(r, c)
+                }
+            }
+        }
+        return null
+    }
 }

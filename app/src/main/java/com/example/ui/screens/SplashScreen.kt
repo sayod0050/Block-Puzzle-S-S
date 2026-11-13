@@ -39,6 +39,12 @@ import com.example.viewmodel.GameScreen
 import com.example.viewmodel.GameViewModel
 import kotlinx.coroutines.delay
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.testTag
+import com.example.ui.components.drawShinyBlock
+
 @Composable
 fun SplashScreen(viewModel: GameViewModel) {
     val strings by viewModel.strings.collectAsState()
@@ -51,11 +57,11 @@ fun SplashScreen(viewModel: GameViewModel) {
     LaunchedEffect(Unit) {
         scale.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
         )
         alpha.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 600)
+            animationSpec = tween(durationMillis = 500)
         )
         pulse.animateTo(
             targetValue = 1.05f,
@@ -67,7 +73,7 @@ fun SplashScreen(viewModel: GameViewModel) {
     }
 
     LaunchedEffect(Unit) {
-        delay(2200)
+        delay(1800)
         viewModel.navigateTo(GameScreen.HOME)
     }
 
@@ -84,7 +90,8 @@ fun SplashScreen(viewModel: GameViewModel) {
                 indication = null
             ) {
                 viewModel.navigateTo(GameScreen.HOME)
-            },
+            }
+            .testTag("splash_screen"),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -92,53 +99,33 @@ fun SplashScreen(viewModel: GameViewModel) {
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(24.dp)
         ) {
-            // S&S Emblem Icon
+            // S&S Emblem Icon with glossy shiny 3D blocks
             Box(
                 modifier = Modifier
                     .scale(scale.value * pulse.value)
-                    .size(130.dp)
+                    .size(134.dp)
                     .clip(RoundedCornerShape(32.dp))
                     .background(
                         Brush.linearGradient(
                             listOf(Color(0xFF2A2D4A), Color(0xFF141624))
                         )
                     )
-                    .padding(12.dp),
+                    .padding(14.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // 2x2 Glowing Jewel Blocks pattern
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF00E5FF))
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFFF3366))
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFFFB300))
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF00E676))
-                        )
-                    }
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val gap = 6.dp.toPx()
+                    val tileSize = (size.width - gap) / 2f
+                    val colors = listOf(
+                        Color(0xFF00E5FF),
+                        Color(0xFFFF3366),
+                        Color(0xFFFFB300),
+                        Color(0xFF00E676)
+                    )
+                    drawShinyBlock(Offset(0f, 0f), Size(tileSize, tileSize), colors[0], glowIntensity = 0.4f)
+                    drawShinyBlock(Offset(tileSize + gap, 0f), Size(tileSize, tileSize), colors[1], glowIntensity = 0.4f)
+                    drawShinyBlock(Offset(0f, tileSize + gap), Size(tileSize, tileSize), colors[2], glowIntensity = 0.4f)
+                    drawShinyBlock(Offset(tileSize + gap, tileSize + gap), Size(tileSize, tileSize), colors[3], glowIntensity = 0.4f)
                 }
             }
 

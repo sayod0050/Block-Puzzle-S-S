@@ -133,6 +133,10 @@ class GamePreferences(context: Context) {
         get() = prefs.getLong("key_stat_playtime", 0L)
         set(value) = prefs.edit().putLong("key_stat_playtime", value).apply()
 
+    var totalBombsDefused: Int
+        get() = prefs.getInt("key_stat_bombs_defused", 0)
+        set(value) = prefs.edit().putInt("key_stat_bombs_defused", value).apply()
+
     // Adventure stars: map level -> stars
     fun getAdventureStars(level: Int): Int {
         return prefs.getInt("key_adv_level_$level", 0)

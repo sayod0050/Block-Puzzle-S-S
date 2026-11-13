@@ -110,4 +110,34 @@ class HexGameBoard(val radius: Int = 3) {
             defusedBombs = 0
         )
     }
+
+    fun snapshotCells(): Map<Pair<Int, Int>, HexCell> {
+        return grid.toMap()
+    }
+
+    fun getWillClearCells(piece: BlockShape, startQ: Int, startR: Int): Set<Pair<Int, Int>> {
+        if (!canPlacePiece(piece, startQ, startR)) return emptySet()
+        val projected = piece.normalizedCoordinates.map { Pair(startQ + it.first, startR + it.second) }.toSet()
+        val willClear = mutableSetOf<Pair<Int, Int>>()
+
+        for (q in -radius..radius) {
+            val lineCells = validCoords.filter { it.first == q }
+            if (lineCells.isNotEmpty() && lineCells.all { grid[it]?.isFilled == true || projected.contains(it) }) {
+                willClear.addAll(lineCells)
+            }
+        }
+        for (r in -radius..radius) {
+            val lineCells = validCoords.filter { it.second == r }
+            if (lineCells.isNotEmpty() && lineCells.all { grid[it]?.isFilled == true || projected.contains(it) }) {
+                willClear.addAll(lineCells)
+            }
+        }
+        for (s in -radius..radius) {
+            val lineCells = validCoords.filter { -it.first - it.second == s }
+            if (lineCells.isNotEmpty() && lineCells.all { grid[it]?.isFilled == true || projected.contains(it) }) {
+                willClear.addAll(lineCells)
+            }
+        }
+        return willClear
+    }
 }

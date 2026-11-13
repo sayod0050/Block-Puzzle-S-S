@@ -295,9 +295,7 @@ fun StatisticsScreen(viewModel: GameViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
-                        if (tempName.isNotBlank()) {
-                            viewModel.prefs.playerName = tempName.trim()
-                        }
+                        viewModel.setPlayerName(tempName)
                         showEditNameDialog = false
                     }
                 ) {

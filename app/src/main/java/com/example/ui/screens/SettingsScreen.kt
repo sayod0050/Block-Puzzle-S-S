@@ -63,15 +63,15 @@ fun SettingsScreen(viewModel: GameViewModel) {
 
     var showResetDialog by remember { mutableStateOf(false) }
 
-    var masterVol by remember { mutableFloatStateOf(viewModel.prefs.masterVolume) }
-    var musicVol by remember { mutableFloatStateOf(viewModel.prefs.musicVolume) }
-    var sfxVol by remember { mutableFloatStateOf(viewModel.prefs.sfxVolume) }
+    val masterVol by viewModel.masterVolume.collectAsState()
+    val musicVol by viewModel.musicVolume.collectAsState()
+    val sfxVol by viewModel.sfxVolume.collectAsState()
 
-    var isMusicOn by remember { mutableStateOf(viewModel.prefs.isMusicEnabled) }
-    var isSfxOn by remember { mutableStateOf(viewModel.prefs.isSfxEnabled) }
-    var isVibrationOn by remember { mutableStateOf(viewModel.prefs.isVibrationEnabled) }
-    var isPreviewOn by remember { mutableStateOf(viewModel.prefs.isPlacementPreviewEnabled) }
-    var isReducedMotionOn by remember { mutableStateOf(viewModel.prefs.isReducedMotionEnabled) }
+    val isMusicOn by viewModel.isMusicEnabled.collectAsState()
+    val isSfxOn by viewModel.isSfxEnabled.collectAsState()
+    val isVibrationOn by viewModel.isVibrationEnabled.collectAsState()
+    val isPreviewOn by viewModel.isPlacementPreviewEnabled.collectAsState()
+    val isReducedMotionOn by viewModel.isReducedMotionEnabled.collectAsState()
 
     Column(
         modifier = Modifier
@@ -93,7 +93,7 @@ fun SettingsScreen(viewModel: GameViewModel) {
             IconButton(
                 onClick = { viewModel.navigateTo(GameScreen.HOME) },
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(theme.cardBackground)
                     .testTag("settings_back_button")
@@ -151,7 +151,7 @@ fun SettingsScreen(viewModel: GameViewModel) {
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(44.dp)
+                                        .height(48.dp)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(
                                             if (isSelected) theme.accentColor
@@ -199,10 +199,7 @@ fun SettingsScreen(viewModel: GameViewModel) {
                             Text(text = strings.music, color = theme.textColorPrimary, fontSize = 15.sp)
                             Switch(
                                 checked = isMusicOn,
-                                onCheckedChange = {
-                                    isMusicOn = it
-                                    viewModel.toggleMusic(it)
-                                },
+                                onCheckedChange = { viewModel.toggleMusic(it) },
                                 colors = SwitchDefaults.colors(checkedThumbColor = theme.accentColor)
                             )
                         }
@@ -216,10 +213,7 @@ fun SettingsScreen(viewModel: GameViewModel) {
                             Text(text = strings.soundEffects, color = theme.textColorPrimary, fontSize = 15.sp)
                             Switch(
                                 checked = isSfxOn,
-                                onCheckedChange = {
-                                    isSfxOn = it
-                                    viewModel.toggleSfx(it)
-                                },
+                                onCheckedChange = { viewModel.toggleSfx(it) },
                                 colors = SwitchDefaults.colors(checkedThumbColor = theme.accentColor)
                             )
                         }
@@ -234,10 +228,37 @@ fun SettingsScreen(viewModel: GameViewModel) {
                         )
                         Slider(
                             value = masterVol,
-                            onValueChange = {
-                                masterVol = it
-                                viewModel.updateVolumes(masterVol, musicVol, sfxVol)
-                            },
+                            onValueChange = { viewModel.updateVolumes(it, musicVol, sfxVol) },
+                            colors = SliderDefaults.colors(
+                                thumbColor = theme.accentColor,
+                                activeTrackColor = theme.accentColor
+                            )
+                        )
+
+                        // Music Volume Slider
+                        Text(
+                            text = "${strings.musicVolume}: ${(musicVol * 100).toInt()}%",
+                            fontSize = 13.sp,
+                            color = theme.textColorSecondary
+                        )
+                        Slider(
+                            value = musicVol,
+                            onValueChange = { viewModel.updateVolumes(masterVol, it, sfxVol) },
+                            colors = SliderDefaults.colors(
+                                thumbColor = theme.accentColor,
+                                activeTrackColor = theme.accentColor
+                            )
+                        )
+
+                        // SFX Volume Slider
+                        Text(
+                            text = "${strings.sfxVolume}: ${(sfxVol * 100).toInt()}%",
+                            fontSize = 13.sp,
+                            color = theme.textColorSecondary
+                        )
+                        Slider(
+                            value = sfxVol,
+                            onValueChange = { viewModel.updateVolumes(masterVol, musicVol, it) },
                             colors = SliderDefaults.colors(
                                 thumbColor = theme.accentColor,
                                 activeTrackColor = theme.accentColor
@@ -273,10 +294,7 @@ fun SettingsScreen(viewModel: GameViewModel) {
                             Text(text = strings.vibration, color = theme.textColorPrimary, fontSize = 15.sp)
                             Switch(
                                 checked = isVibrationOn,
-                                onCheckedChange = {
-                                    isVibrationOn = it
-                                    viewModel.toggleVibration(it)
-                                },
+                                onCheckedChange = { viewModel.toggleVibration(it) },
                                 colors = SwitchDefaults.colors(checkedThumbColor = theme.accentColor)
                             )
                         }
@@ -290,10 +308,7 @@ fun SettingsScreen(viewModel: GameViewModel) {
                             Text(text = strings.placementPreview, color = theme.textColorPrimary, fontSize = 15.sp)
                             Switch(
                                 checked = isPreviewOn,
-                                onCheckedChange = {
-                                    isPreviewOn = it
-                                    viewModel.togglePreview(it)
-                                },
+                                onCheckedChange = { viewModel.togglePreview(it) },
                                 colors = SwitchDefaults.colors(checkedThumbColor = theme.accentColor)
                             )
                         }
@@ -307,10 +322,7 @@ fun SettingsScreen(viewModel: GameViewModel) {
                             Text(text = strings.reducedMotion, color = theme.textColorPrimary, fontSize = 15.sp)
                             Switch(
                                 checked = isReducedMotionOn,
-                                onCheckedChange = {
-                                    isReducedMotionOn = it
-                                    viewModel.toggleReducedMotion(it)
-                                },
+                                onCheckedChange = { viewModel.toggleReducedMotion(it) },
                                 colors = SwitchDefaults.colors(checkedThumbColor = theme.accentColor)
                             )
                         }

@@ -31,10 +31,14 @@ class SoundManager {
         frequencies: List<Float>,
         durationMs: Int,
         volumeMultiplier: Float = 1.0f,
-        envelopeType: String = "decay" // "decay", "pluck", "sparkle", "chirp"
+        envelopeType: String = "decay", // "decay", "pluck", "sparkle", "chirp"
+        isMusic: Boolean = false
     ) {
-        if (isMuted || !isSfxEnabled) return
-        val finalVol = (masterVolume * sfxVolume * volumeMultiplier).coerceIn(0f, 1f)
+        if (isMuted) return
+        if (isMusic && !isMusicEnabled) return
+        if (!isMusic && !isSfxEnabled) return
+        val channelVol = if (isMusic) musicVolume else sfxVolume
+        val finalVol = (masterVolume * channelVol * volumeMultiplier).coerceIn(0f, 1f)
         if (finalVol <= 0.01f) return
 
         scope.launch {
@@ -184,8 +188,9 @@ class SoundManager {
                     playTone(
                         frequencies = listOf(root * 0.5f, harmony * 0.5f),
                         durationMs = if (isZenMode) 1200 else 700,
-                        volumeMultiplier = musicVolume * 0.35f,
-                        envelopeType = "decay"
+                        volumeMultiplier = 0.35f,
+                        envelopeType = "decay",
+                        isMusic = true
                     )
                     noteIndex = (noteIndex + 1 + (if (isZenMode) 1 else 2)) % pentatonicScale.size
                 }

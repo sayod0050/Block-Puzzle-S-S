@@ -22,7 +22,7 @@
 5. **Adventure Mode:** 20 handcrafted progressive stages with star ratings (1–3 stars), obstacles, target scores, and coin rewards.
 6. **Daily Challenge:** A unique date-seeded obstacle puzzle every calendar day with streak tracking and coin bonuses.
 7. **Hexa Mode:** Innovative hexagonal honeycomb board layout (axial coordinates) with 3-axis line clearing and special hex shapes.
-8. **Puzzle Challenge:** Limited move budget requiring calculated foresight.
+8. **Puzzle Challenge:** Limited move budget (25 moves) with an 800-point victory target requiring calculated foresight.
 9. **Combo Rush:** Fast-paced consecutive clearing system with stacking combo multipliers (x2, x3, x4, x5...).
 10. **Endless Challenge:** Progressive difficulty scaling for veteran puzzle masters.
 
@@ -52,12 +52,12 @@ Instant switching in Settings between:
 - **Русский (Russian)**
 - **Тоҷикӣ (Tajik)** with correct Tajik Cyrillic characters (Ғ, Ӣ, Қ, Ӯ, Ҳ, Ҷ).
 
-### 5. Tactile Controls & Polish
-- Smooth touch dragging with finger lift offset (blocks stay visible above finger).
-- Placement ghost preview showing valid target cells.
-- Tap-to-Place alternative mode for accessible one-handed or stylus play.
-- Haptic vibration patterns on placement and line clears.
-- Compose Canvas particle bursts on line clears.
+### 5. Modern Shiny 3D Blocks & Tactile Controls
+- Realistic glossy 3D crystal/bevel block rendering (`BlockRenderer.kt`) with 3-stop gradients, specular highlights, rim lighting, soft drop shadows, and glowing bomb countdown badges.
+- Smooth touch & mouse dragging with floating 1:1 scale preview and adaptive finger lift offset.
+- Placement ghost preview plus predictive line-clear highlights showing rows, columns, or hex axes about to clear.
+- Smart Tap-to-Place alternative mode for accessible one-handed or stylus play.
+- Placement spring pop animation, line-clear flash sweep, haptic vibration, and Compose Canvas particle bursts.
 
 ### 6. Persistence & Offline Operation
 - 100% offline-compatible.
