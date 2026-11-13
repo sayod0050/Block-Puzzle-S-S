@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -134,8 +135,11 @@ fun GamePlayScreen(viewModel: GameViewModel) {
     var hoverGridCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var hoverIsValid by remember { mutableStateOf(false) }
 
-    // Placement pop animation
+    // Placement pop animation & screen shake
     val placeScale = remember { Animatable(1f) }
+    val screenShakeX = remember { Animatable(0f) }
+    val screenShakeY = remember { Animatable(0f) }
+
     LaunchedEffect(placeAnimId) {
         if (placeAnimId > 0L && !reducedMotion) {
             placeScale.snapTo(0.76f)
@@ -146,18 +150,30 @@ fun GamePlayScreen(viewModel: GameViewModel) {
                     stiffness = Spring.StiffnessMedium
                 )
             )
+            screenShakeX.snapTo(kotlin.random.Random.nextFloat() * 6f - 3f)
+            screenShakeY.snapTo(kotlin.random.Random.nextFloat() * 6f - 3f)
+            screenShakeX.animateTo(0f, spring(stiffness = Spring.StiffnessHigh))
+            screenShakeY.animateTo(0f, spring(stiffness = Spring.StiffnessHigh))
         } else {
             placeScale.snapTo(1f)
         }
     }
 
-    // Line-clear flash & particle burst
+    // Line-clear flash, boom particle bursts & heavy screen shake
     val clearFlashAlpha = remember { Animatable(0f) }
     var particleTick by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(clearBurstId) {
         if (clearBurstId > 0L && lastClearedCells.isNotEmpty() && boardWidthPx > 0f && !reducedMotion) {
             val isHex = mode == GameModeType.HEXA
+            val centerOffset = Offset(boardWidthPx / 2f, boardWidthPx / 2f)
+            viewModel.particleManager.spawnBoomBurst(centerOffset, theme.blockColors, count = if (combo >= 2) 75 else 45)
+
+            screenShakeX.snapTo(kotlin.random.Random.nextFloat() * 16f - 8f)
+            screenShakeY.snapTo(kotlin.random.Random.nextFloat() * 16f - 8f)
+            screenShakeX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium))
+            screenShakeY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium))
+
             if (isHex) {
                 val hexRadius = boardWidthPx / 13.5f
                 val center = Offset(boardWidthPx / 2f, boardWidthPx / 2f)
@@ -166,7 +182,7 @@ fun GamePlayScreen(viewModel: GameViewModel) {
                     viewModel.particleManager.spawnLineClearBurst(
                         center = px,
                         colors = theme.blockColors,
-                        count = 7
+                        count = 12
                     )
                 }
             } else {
@@ -176,12 +192,12 @@ fun GamePlayScreen(viewModel: GameViewModel) {
                     viewModel.particleManager.spawnLineClearBurst(
                         center = px,
                         colors = theme.blockColors,
-                        count = 7
+                        count = 12
                     )
                 }
             }
 
-            clearFlashAlpha.snapTo(0.9f)
+            clearFlashAlpha.snapTo(0.95f)
             var lastTime = 0L
             while (viewModel.particleManager.particles.isNotEmpty() || clearFlashAlpha.value > 0.01f) {
                 withFrameNanos { frameTime ->
@@ -191,7 +207,7 @@ fun GamePlayScreen(viewModel: GameViewModel) {
                     particleTick++
                 }
                 if (clearFlashAlpha.value > 0f) {
-                    clearFlashAlpha.snapTo((clearFlashAlpha.value - 0.055f).coerceAtLeast(0f))
+                    clearFlashAlpha.snapTo((clearFlashAlpha.value - 0.05f).coerceAtLeast(0f))
                 }
             }
         }
@@ -445,7 +461,8 @@ fun GamePlayScreen(viewModel: GameViewModel) {
                 Box(
                     modifier = Modifier
                         .size(boardDim)
-                        .shadow(14.dp, RoundedCornerShape(22.dp))
+                        .offset(x = screenShakeX.value.dp, y = screenShakeY.value.dp)
+                        .shadow(16.dp, RoundedCornerShape(22.dp))
                         .clip(RoundedCornerShape(22.dp))
                         .background(theme.boardBackground)
                         .border(3.dp, theme.boardBorder, RoundedCornerShape(22.dp))
@@ -500,16 +517,22 @@ fun GamePlayScreen(viewModel: GameViewModel) {
                         Box(
                             modifier = Modifier
                                 .align(Alignment.Center)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xEE1E2138))
-                                .border(2.dp, theme.accentColor, RoundedCornerShape(16.dp))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .scale(placeScale.value)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFF7C4DFF), Color(0xFFFF3366), Color(0xFFFFB300))
+                                    )
+                                )
+                                .border(3.dp, Color.White, RoundedCornerShape(20.dp))
+                                .shadow(20.dp, RoundedCornerShape(20.dp))
+                                .padding(horizontal = 22.dp, vertical = 12.dp)
                         ) {
                             Text(
                                 text = comboItem.text,
-                                fontSize = 20.sp,
+                                fontSize = 24.sp,
                                 fontWeight = FontWeight.Black,
-                                color = theme.accentColor
+                                color = Color.White
                             )
                         }
                     }
