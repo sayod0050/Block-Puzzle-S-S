@@ -87,3 +87,13 @@ Instant switching in Settings between:
   - Trilingual string dictionary validation
   - 8-theme color palette coverage
 - **Build Status:** Verified with `compile_applet` and `gradle assembleDebug` (Exit 0).
+
+---
+
+## 🚀 Automated GitHub Releases (CI/CD)
+
+An automated workflow is configured at `.github/workflows/auto-release.yml` using GitHub Actions' built-in `GITHUB_TOKEN` (`contents: write`):
+- **Automatic Triggers:** Runs on every push to `main` / `master`, any version tag (`v*`, e.g., `v1.0.0`), or manual **Run workflow** dispatch.
+- **Pipeline:** Restores `debug.keystore` from `debug.keystore.base64`, runs `:app:testDebugUnitTest`, builds `SS-Block-Puzzle-debug.apk`, and publishes a GitHub Release automatically.
+- **Optional Play Store Release Signing:** Add `RELEASE_KEYSTORE_BASE64`, `STORE_PASSWORD`, and `KEY_PASSWORD` under GitHub **Settings → Secrets and variables → Actions** to also attach signed `SS-Block-Puzzle-release.apk` and `SS-Block-Puzzle-release.aab` files to each release.
+
