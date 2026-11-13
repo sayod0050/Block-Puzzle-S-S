@@ -430,12 +430,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 prefs.highestCombo = _combo.value
             }
 
-            val comboMsg = if (clearResult.clearedCount >= 3) {
-                "PERFECT! x${_combo.value}"
-            } else if (_combo.value > 1) {
-                "COMBO x${_combo.value}!"
-            } else {
-                "+$addedScore"
+            val comboMsg = when {
+                clearResult.clearedCount >= 4 -> "🌟 ULTRA CLEAR x${_combo.value}! 🌟"
+                clearResult.clearedCount >= 3 -> "🔥 PERFECT x${_combo.value}! 🔥"
+                _combo.value >= 4 -> "👑 GODLIKE x${_combo.value}! 👑"
+                _combo.value >= 3 -> "⚡ EPIC x${_combo.value}! ⚡"
+                _combo.value > 1 -> "✨ COMBO x${_combo.value}! ✨"
+                else -> "+$addedScore"
             }
             triggerFloatingCombo(comboMsg)
 
@@ -573,7 +574,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             soundManager.playLineClear(clearResult.clearedCount)
             hapticManager.vibrateClear(clearResult.clearedCount)
             _combo.value = (_combo.value + 1).coerceAtMost(6)
-            triggerFloatingCombo("HEXA CLEAR! x${_combo.value}")
+            val hexMsg = when {
+                clearResult.clearedCount >= 3 -> "💎 HEXA MEGA x${_combo.value}! 💎"
+                _combo.value > 1 -> "🔮 HEXA COMBO x${_combo.value}! 🔮"
+                else -> "HEXA CLEAR!"
+            }
+            triggerFloatingCombo(hexMsg)
         } else {
             _lastClearedCells.value = emptyList()
             _combo.value = 1
