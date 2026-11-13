@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
 import com.example.viewmodel.GameScreen
 import com.example.viewmodel.GameViewModel
 
@@ -219,7 +220,7 @@ fun AboutScreen(viewModel: GameViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(text = "Version", color = theme.textColorSecondary, fontSize = 13.sp)
-                    Text(text = "1.0.0 (Release)", color = theme.textColorPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "${BuildConfig.VERSION_NAME} (Release)", color = theme.textColorPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
